@@ -1,6 +1,13 @@
 pipeline {
     agent any
     
+    environment {
+        AWS_REGION = 'eu-north-1'
+        ECR_REPO_NAME = 'data-pipeline'
+        DOCKER_USERNAME = 'rahulunecha'
+        AWS_ACCOUNT_ID = '762233758050'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -10,16 +17,16 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t data-pipeline .'
+                sh 'docker build -t $ECR_REPO_NAME .'
             }
         }
 
         stage('Push to ECR') {
             steps {
                 sh '''
-                aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
-                docker tag data-pipeline:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/data-pipeline:latest
-                docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/data-pipeline:latest
+                aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                docker tag $ECR_REPO_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest
+                docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest
                 '''
             }
         }
