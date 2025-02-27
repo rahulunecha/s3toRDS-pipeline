@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git url: 'https://github.com/your-username/s3-to-rds-pipeline.git', branch: 'main'
+                git url: 'https://github.com/rahulunecha/s3toRDS-pipeline.git', branch: 'main'
             }
         }
 
