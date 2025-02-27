@@ -1,48 +1,48 @@
 pipeline {
     agent any
-    
+
     environment {
-        AWS_REGION = 'eu-north-1'
-        ECR_REPO_NAME = 'data-pipeline'
-        AWS_ACCOUNT_ID = '762233758050'
+        AWS_DEFAULT_REGION = 'us-east-1'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Clone Repository') {
             steps {
-                checkout scm
+                git url: 'https://github.com/your-username/s3-to-rds-pipeline.git', branch: 'main'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $ECR_REPO_NAME .'
+                sh 'docker build -t my-app .'
             }
         }
 
-        stage('Push to ECR') {
-            environment {
-                DOCKER_CLI_ACI = '1'
-            }
+        stage('Push Docker Image to ECR') {
             steps {
-                withCredentials([aws(credentialsId: 'aws-creds')]) {
-                    sh '''
-                    aws ecr get-login-password --region $AWS_REGION | \
-                    docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-
-                    docker tag $ECR_REPO_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest
-                    docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest
-                    '''
-                }
+                sh '''
+                aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin <account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+                docker tag my-app:latest <account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/my-app-repo:latest
+                docker push <account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/my-app-repo:latest
+                '''
             }
         }
 
-        stage('Deploy with Terraform') {
+        stage('Deploy AWS Resources with Terraform') {
             steps {
                 sh '''
                 cd terraform
                 terraform init
                 terraform apply -auto-approve
+                '''
+            }
+        }
+
+        stage('Invoke Lambda Function') {
+            steps {
+                sh '''
+                aws lambda invoke --function-name s3-to-rds --cli-binary-format raw-in-base64-out response.json
+                cat response.json
                 '''
             }
         }

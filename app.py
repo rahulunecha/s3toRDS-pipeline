@@ -2,48 +2,35 @@ import boto3
 import pymysql
 import os
 
+# AWS and DB Config
 s3 = boto3.client('s3')
+bucket_name = os.environ['S3_BUCKET']
+file_key = os.environ['FILE_KEY']
 
-def read_s3(bucket, key):
-    response = s3.get_object(Bucket=bucket, Key=key)
-    return response['Body'].read().decode('utf-8')
+db_host = os.environ['DB_HOST']
+db_user = os.environ['DB_USER']
+db_password = os.environ['DB_PASSWORD']
+db_name = os.environ['DB_NAME']
 
+def read_s3_file():
+    response = s3.get_object(Bucket=bucket_name, Key=file_key)
+    data = response['Body'].read().decode('utf-8')
+    return data
 
-def push_to_rds(data, rds_config):
-    try:
-        connection = pymysql.connect(
-            host=rds_config['host'],
-            user=rds_config['user'],
-            password=rds_config['password'],
-            database=rds_config['database'],
-            connect_timeout=5
-        )
-        
-        with connection.cursor() as cursor:
-            cursor.execute("INSERT INTO my_table (data) VALUES (%s)", (data,))
+def insert_into_rds(data):
+    connection = pymysql.connect(
+        host=db_host,
+        user=db_user,
+        password=db_password,
+        database=db_name
+    )
+    with connection.cursor() as cursor:
+        sql = "INSERT INTO my_table (data) VALUES (%s)"
+        cursor.execute(sql, (data,))
         connection.commit()
-        print("Data pushed to RDS")
-    except Exception as e:
-        print("RDS connection failed, pushing to Glue instead")
-        push_to_glue(data)
+    connection.close()
 
-
-def push_to_glue(data):
-    glue = boto3.client('glue')
-    # Implement Glue logic here
-    print("Data pushed to Glue Database")
-
-
-if __name__ == '__main__':
-    bucket = os.environ['S3_BUCKET']
-    key = os.environ['S3_KEY']
-    
-    rds_config = {
-        'host': os.environ['RDS_HOST'],
-        'user': os.environ['RDS_USER'],
-        'password': os.environ['RDS_PASSWORD'],
-        'database': os.environ['RDS_DATABASE'],
-    }
-
-    data = read_s3(bucket, key)
-    push_to_rds(data, rds_config)
+if __name__ == "__main__":
+    data = read_s3_file()
+    insert_into_rds(data)
+    print("Data transferred successfully!")
